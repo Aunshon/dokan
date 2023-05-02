@@ -83,6 +83,20 @@
                         </div>
                     </div>
 
+                    <div class="column" v-else-if="newCommissions.includes( selectedCommissionType.name )">
+                        <label>{{ __( 'Admin Commission', 'dokan-lite' )  }}</label>
+                        <SinglePriceQuantityVendorSale
+                            class="new-commission-container"
+                            :allCommission="vendorInfo.admin_commission"
+                            :selectedCommissionName="selectedCommissionType.name"
+                            :selectedCommissionLabel="selectedCommissionType.label"
+                            v-on:updateCommissionState="updateCommissionState"
+                            v-on:removeCommissionFromList="removeCommissionFromList"
+                            v-on:generateNextRow="generateNextRow"
+                            v-on:resetRows="resetRows"
+                        />
+                    </div>
+
                     <div class="column" v-else>
                         <label>{{ __( 'Admin Commission', 'dokan-lite' )  }}</label>
                         <input type="text" class="dokan-form-input" :class="{ 'wc_input_price': selectedCommissionType.name == 'flat', 'wc_input_decimal': selectedCommissionType.name != 'flat' }" v-model="vendorInfo.admin_commission">
@@ -132,13 +146,15 @@
 <script>
 import Switches from 'admin/components/Switches.vue'
 import { Multiselect } from 'vue-multiselect';
+import SinglePriceQuantityVendorSale from '../components/Fields/SinglePriceQuantityVendorSale.vue'
 
 export default {
     name: 'VendorPaymentFields',
 
     components: {
         Switches,
-        Multiselect
+        Multiselect,
+        SinglePriceQuantityVendorSale
     },
 
     props: {
@@ -163,8 +179,20 @@ export default {
                 },
                 {
                     name: 'combine',
-                    label: this.__( 'Combine', 'dokan-lite' )
-                }
+                    label: this.__( 'Combined', 'dokan-lite' )
+                },
+                {
+                    name: 'vendor_sale',
+                    label: this.__( 'Vendor Sale', 'dokan-lite' )
+                },
+                {
+                    name: 'product_price',
+                    label: this.__( 'Product Price', 'dokan-lite' )
+                },
+                {
+                    name: 'product_quantity',
+                    label: this.__( 'Product Quantity', 'dokan-lite' )
+                },
             ],
             selectedCommissionType: {
                 name: 'flat',
@@ -172,6 +200,14 @@ export default {
             },
             getBankFields: dokan.hooks.applyFilters( 'getVendorBankFields', [] ),
             getPyamentFields: dokan.hooks.applyFilters( 'AfterPyamentFields', [] ),
+            newCommissions: [ 'vendor_sale', 'product_price', 'product_quantity' ],
+            newCommissionData: {
+                from: 0,
+                to: '',
+                commission_type: 'flat',
+                flat: 10,
+                percentage: 10
+            },
             afterFeaturedCheckbox: dokan.hooks.applyFilters( 'afterFeaturedCheckbox', [] ),
         }
     },
@@ -239,8 +275,67 @@ export default {
             }
 
             this.vendorInfo.admin_commission_type = name;
-        }
-    }
+            this.vendorInfo.admin_commission = this.getAndCheckCommissionType(true);
+        },
+
+        getAndCheckCommissionType( begin = false, value = '' ) {
+            let selectedCommissionName = this.selectedCommissionType.name;
+            let commissionData = {...this.newCommissionData};
+            value ? commissionData.from = value : '';
+            if ( this.newCommissions.includes( selectedCommissionName ) ) {
+                return begin ? [commissionData] : commissionData;
+            }
+            return '';
+        },
+        async addNewCommissionData(value = '') {
+            let oldCommissions = JSON.parse(JSON.stringify(this.vendorInfo.admin_commission));
+            if ( 'string' == typeof oldCommissions ) {
+                oldCommissions = [];
+            }
+            await oldCommissions.push( this.getAndCheckCommissionType(false, value) );
+            await this.$emit('updateCommissionState', oldCommissions);
+        },
+        async updateCommissionState( obj ) {
+            let { value, field, index, type  } = obj;
+            let oldCommissions = JSON.parse(JSON.stringify(this.vendorInfo.admin_commission));
+            oldCommissions[index][field] = value;
+            if ( 'to' == field && oldCommissions[index+1] ) {
+                oldCommissions[index+1].from = Number( value ) + 1;
+                // oldCommissions[index+1].to = '';
+            }
+            await this.$emit('updateCommissionState', oldCommissions);
+        },
+        async removeCommissionFromList( index ) {
+            let oldCommissions  = JSON.parse(JSON.stringify(this.vendorInfo.admin_commission));
+            if ( oldCommissions [index+1] ) {
+                oldCommissions [index+1].from = oldCommissions [index].from;
+            }
+            oldCommissions.splice( index, 1 );
+            await this.$emit('updateCommissionState', oldCommissions);
+        },
+        get_vendor_commission_array( commissions ) {
+            let all_commissions = [];
+            all_commissions = 'string' === typeof commissions ? [] : commissions;
+            return all_commissions;
+        },
+        async generateNextRow( data ) {
+            let { value, index } = data;
+            const oldCommissions = JSON.parse(JSON.stringify(this.vendorInfo.admin_commission));
+            await ! oldCommissions[index] ? oldCommissions.push( this.getAndCheckCommissionType(false, value) ) : '';
+            await this.$emit('updateCommissionState', oldCommissions);
+        },
+        async resetRows( data ) {
+            let { value, index } = data;
+            const oldCommissions = JSON.parse(JSON.stringify(this.vendorInfo.admin_commission));
+            if ( oldCommissions[index] && value !== '' && ( '' === oldCommissions[index+1].to || value <= oldCommissions[index+1].to - 2 ) ) {
+                return;
+            }
+            oldCommissions[index+1].to = '';
+            '' === value ? index = index+1 : index = index+2;
+            await oldCommissions.splice(index, 9e9);
+            await this.$emit('updateCommissionState', oldCommissions);
+        },
+    },
 };
 </script>
 
@@ -275,5 +370,17 @@ export default {
             width: 40%;
         }
     }
+}
+.new-commission-container {
+    margin-top: 10px;
+}
+.add_new_commission_set {
+    border: none;
+    background-color: #8c8f94;
+    border-radius: 4px;
+    padding: 5px 12px;
+    color: #fff;
+    margin-top: 5px;
+    cursor: pointer;
 }
 </style>

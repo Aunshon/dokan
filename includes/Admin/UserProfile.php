@@ -80,6 +80,7 @@ class UserProfile {
         $address_state     = isset( $store_settings['address']['state'] ) ? $store_settings['address']['state'] : '';
         $banner_width      = dokan_get_vendor_store_banner_width();
         $banner_height     = dokan_get_vendor_store_banner_height();
+        $admin_commission  = dokan_is_dynamic_commission_type( $admin_commission_type ) ? 0 : $admin_commission;
         $admin_commission  = ( 'flat' === $admin_commission_type ) ? wc_format_localized_price( $admin_commission ) : wc_format_localized_decimal( $admin_commission );
 
         $country_state = array(
@@ -334,7 +335,7 @@ class UserProfile {
                         <p class="description"><?php esc_html_e( 'Set the commmission type admin gets from this seller', 'dokan-lite' ); ?></p>
                     </td>
                 </tr>
-                <tr>
+                <tr class="dokan-main-commission">
                     <th><?php esc_html_e( 'Admin Commission ', 'dokan-lite' ); ?></th>
                     <td>
                         <input type="text" class="wc_input_price small-text" id="admin-commission" name="dokan_admin_percentage" value="<?php echo esc_attr( $admin_commission ); ?>">

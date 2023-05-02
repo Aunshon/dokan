@@ -3642,18 +3642,21 @@ function dokan_privacy_policy_text( $return = false ) {
 }
 
 /**
- * Dokan commission types
+ * Dokan commission types.
+ *
+ * @param boolean $exclude_dynamic_commissions
  *
  * @since 2.9.21
  *
  * @return array
  */
-function dokan_commission_types() {
+function dokan_commission_types( $exclude_dynamic_commissions = false ) {
     return apply_filters(
         'dokan_commission_types', [
             'flat'       => __( 'Flat', 'dokan-lite' ),
             'percentage' => __( 'Percentage', 'dokan-lite' ),
-        ]
+        ],
+        $exclude_dynamic_commissions
     );
 }
 

@@ -50,15 +50,21 @@
             </div>
         </template>
 
-        <template v-if="'price' === fieldData.type && allSettingsValues.dokan_selling && 'combine' !== allSettingsValues.dokan_selling.commission_type">
+        <template v-if="'price' == fieldData.type && allSettingsValues.dokan_selling && ( 'flat' === allSettingsValues.dokan_selling.commission_type || 'percentage' === allSettingsValues.dokan_selling.commission_type )">
             <div class="field_contents" v-bind:class="[fieldData.content_class ? fieldData.content_class : '']">
                 <fieldset>
                     <FieldHeading :fieldData="fieldData"></FieldHeading>
                     <div class="field">
                         <label :for="sectionId + '[' + fieldData.name + ']'">
-                            <input type="text" :min="fieldData.min" class="regular-text medium" :id="sectionId + '[' + fieldData.name + ']'"
+                            <input
+                                type="text"
+                                :min="fieldData.min"
+                                class="regular-text medium"
+                                :id="sectionId + '[' + fieldData.name + ']'"
                                 :class="{ wc_input_decimal: allSettingsValues.dokan_selling.commission_type=='percentage', 'wc_input_price': allSettingsValues.dokan_selling.commission_type=='flat' }"
-                                :name="sectionId + '[' + fieldData.name + ']'" v-model="fieldValue[fieldData.name]"/>
+                                :name="sectionId + '[' + fieldData.name + ']'"
+                                v-model="fieldValue[fieldData.name]"
+                            />
                         </label>
                     </div>
                 </fieldset>
@@ -71,7 +77,7 @@
             </div>
         </template>
 
-        <template v-if="'combine' === fieldData.type && haveCondition( fieldData ) && fieldData.condition.type == 'show' && checkConditionLogic( fieldData, fieldValue )">
+        <template v-if="'combine' === fieldData.type && 'combine' === allSettingsValues.dokan_selling.commission_type && checkConditionLogic( fieldData, fieldValue )">
             <div class="field_contents" v-bind:class="[fieldData.content_class ? fieldData.content_class : '']">
                 <fieldset>
                     <FieldHeading :fieldData="fieldData"></FieldHeading>
@@ -94,6 +100,46 @@
                 </p>
                 <p v-else-if="hasError( fieldData.fields.fixed_fee.name )" class="dokan-error combine-commission">
                     {{ getError( fieldData.fields.fixed_fee.label ) }}
+                </p>
+            </div>
+        </template>
+
+        <template
+            v-if="
+            ( 'vendor_sale' == fieldData.type && allSettingsValues.dokan_selling && 'vendor_sale' === allSettingsValues.dokan_selling.commission_type )
+            || ( 'product_price' == fieldData.type && allSettingsValues.dokan_selling && 'product_price' === allSettingsValues.dokan_selling.commission_type )
+            || ( 'product_quantity' == fieldData.type && allSettingsValues.dokan_selling && 'product_quantity' === allSettingsValues.dokan_selling.commission_type )
+            "
+        >
+            <div class="field_contents" v-bind:class="[fieldData.content_class ? fieldData.content_class : '']">
+                <fieldset>
+                    <div class="field_data">
+                        <h3 class="field_heading" scope="row">
+                            {{ fieldData.label }}
+                            <span v-if="fieldData.tooltip">
+                                <i class="dashicons dashicons-editor-help tips" :title="fieldData.tooltip" v-tooltip="fieldData.tooltip"></i>
+                            </span>
+                        </h3>
+                        <p class="field_desc" v-html="fieldData.desc"></p>
+                    </div>
+                </fieldset>
+                <div class="new-commission-fields">
+                    <PriceQuantityVendorSale
+                        :id="id"
+                        :fieldData="fieldData"
+                        :sectionId="sectionId"
+                        :fieldValue="fieldValue"
+                        :allSettingsValues="allSettingsValues"
+                        :errors="errors"
+                        :toggleLoadingState="toggleLoadingState"
+                        :validationErrors="validationErrors"
+                    />
+                </div>
+                <p v-if="hasError( fieldData.name )" class="dokan-error">
+                    {{ getError( fieldData.label ) }}
+                </p>
+                <p v-if="hasValidationError( fieldData.name )" class="dokan-error">
+                    {{ getValidationErrorMessage( fieldData.name ) }}
                 </p>
             </div>
         </template>
@@ -163,7 +209,13 @@
                 <fieldset>
                     <FieldHeading :fieldData="fieldData"></FieldHeading>
                     <div class="field">
-                        <select v-if="!fieldData.grouped" class="regular medium" :name="sectionId + '[' + fieldData.name + ']'" :id="sectionId + '[' + fieldData.name + ']'" v-model="fieldValue[fieldData.name]">
+                        <select
+                            @change="getAndCheckCommissionType"
+                            v-if="!fieldData.grouped"
+                            class="regular medium"
+                            :name="sectionId + '[' + fieldData.name + ']'"
+                            :id="sectionId + '[' + fieldData.name + ']'"
+                            v-model="fieldValue[fieldData.name]">
                             <option v-if="fieldData.placeholder" value="" v-html="fieldData.placeholder"></option>
                             <option v-for="( optionVal, optionKey ) in fieldData.options" :key="optionKey" :value="optionKey" v-html="optionVal"></option>
                         </select>
@@ -179,7 +231,8 @@
                             :field="fieldData"
                             :section="sectionId"
                             v-if="fieldData.refresh_options"
-                            :toggle-loading-state="toggleLoadingState"/>
+                            :toggle-loading-state="toggleLoadingState"
+                        />
                     </div>
                 </fieldset>
                 <p v-if="hasValidationError( fieldData.name )" class="dokan-error">
@@ -417,6 +470,7 @@
     let TextEditor            = dokan_get_lib('TextEditor');
     let GoogleMaps            = dokan_get_lib('GoogleMaps');
     let RefreshSettingOptions = dokan_get_lib('RefreshSettingOptions');
+    import PriceQuantityVendorSale from './Fields/PriceQuantityVendorSale.vue';
 
     export default {
         name: 'Fields',
@@ -429,7 +483,8 @@
             colorPicker,
             FieldHeading,
             SocialFields,
-            RefreshSettingOptions
+            RefreshSettingOptions,
+            PriceQuantityVendorSale,
         },
 
         props: ['id', 'fieldData', 'sectionId', 'fieldValue', 'allSettingsValues', 'errors', 'toggleLoadingState', 'validationErrors', 'dokanAssetsUrl'],
@@ -714,6 +769,20 @@
 
                 this.fieldData[ key ] = value;
             },
+
+            getAndCheckCommissionType( event ) {
+                if ( '' === this.fieldValue[event.target.value] ) {
+                    this.fieldValue[event.target.value] = [
+                        {
+                            from: 0,
+                            to: '',
+                            commission_type: 'flat',
+                            flat: 10,
+                            percentage: 10
+                        }
+                    ];
+                }
+            },
         },
     };
 </script>
@@ -866,6 +935,10 @@
                     font-family: 'Roboto', sans-serif;
                 }
             }
+        }
+
+        .new-commission-fields{
+            margin-top: 20px;
         }
 
         .combine_fields {
