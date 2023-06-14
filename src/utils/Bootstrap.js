@@ -11,10 +11,6 @@ import Debounce from 'debounce'
 import VersionCompare from '@/utils/VersionCompare'
 import { parse } from 'papaparse'
 
-window.__ = function( text, domain ) {
-  return __( text, domain );
-}
-
 import {
   VclCode,
   VclList,
